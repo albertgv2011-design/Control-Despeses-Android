@@ -2,7 +2,10 @@ package cat.albertgv.control_despeses
 
 import android.os.Bundle
 import android.content.Context
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,12 +45,17 @@ data class Entry(
     val timestamp: Long
 )
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MaterialTheme(colorScheme = lightColorScheme(primary = Purple, background = Color(0xFFFAF9FC))) {
             ExpenseApp(this)
         } }
+        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        if (BiometricManager.from(this).canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS) {
+            val prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), object : BiometricPrompt.AuthenticationCallback() {})
+            prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Control Despeses").setSubtitle("Confirma la teva identitat per entrar").setAllowedAuthenticators(authenticators).build())
+        }
     }
 }
 
@@ -88,6 +96,16 @@ fun ExpenseApp(context: Context) {
     var settings by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<Entry?>(null) }
     var lastDeleted by remember { mutableStateOf<Entry?>(null) }
+    var bankBalance by remember { mutableLongStateOf(prefs.getLong("bank", 0L)) }
+    var bankAmount by remember { mutableStateOf("") }
+    var bankIn by remember { mutableStateOf(true) }
+    var challengeName by remember { mutableStateOf("") }
+    var challengeTarget by remember { mutableStateOf("") }
+    var challenges by remember { mutableStateOf(prefs.getString("challenges", "") ?: "") }
+    var categoryMap by remember { mutableStateOf(mapOf("Compres" to listOf("Menjar", "Roba", "Higiene", "Llar", "Tecnologia", "Regals", "Altres"), "Online" to listOf("Clash Royale", "Brawl Stars", "Subscripcions", "Compres web"), "Transport" to listOf("Bus", "Tren", "Taxi", "Gasolina"), "Oci" to listOf("Sortides", "Cinema", "Jocs"), "Ingressos" to listOf("Efectiu", "Bizum", "Família", "Sou"))) }
+    var newMainCategory by remember { mutableStateOf("") }
+    var newSubCategory by remember { mutableStateOf("") }
+    var aiQuestion by remember { mutableStateOf("") }
     val categories = listOf("Compres", "Roba", "Menjar", "Paki", "Capritxos", "Clash Royale", "Brawl Stars", "Online", "Bizum", "Efectiu", "Transport", "Subscripcions", "Oci", "Estudis", "Objectius", "Altres")
     val now = System.currentTimeMillis()
     val cal = java.util.Calendar.getInstance()
@@ -107,14 +125,14 @@ fun ExpenseApp(context: Context) {
     Scaffold(
         bottomBar = {
             NavigationBar(containerColor = Color.White) {
-                listOf("Inici", "Moviments", "Configuració").forEachIndexed { index, label ->
+                listOf("Inici", "Moviments", "Banc", "Reptes", "Categories", "IA", "Ajustos").forEachIndexed { index, label ->
                     NavigationBarItem(selected = tab == index, onClick = { tab = index; settings = index == 2 },
-                        icon = { Text(listOf("⌂", "↕", "⚙")[index], fontSize = 20.sp) }, label = { Text(label) })
+                        icon = { Text(listOf("⌂", "↕", "▣", "★", "☷", "✦", "⚙")[index], fontSize = 18.sp) }, label = { Text(label) })
                 }
             }
         },
         floatingActionButton = {
-            if (tab != 2) FloatingActionButton(onClick = { showAdd = true }, containerColor = Purple, contentColor = Color.White) {
+            if (tab == 0 || tab == 1) FloatingActionButton(onClick = { showAdd = true }, containerColor = Purple, contentColor = Color.White) {
                 Text("+", fontSize = 30.sp)
             }
         },
