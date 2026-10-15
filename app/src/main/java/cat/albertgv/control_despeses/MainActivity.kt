@@ -51,11 +51,7 @@ class MainActivity : FragmentActivity() {
         setContent { MaterialTheme(colorScheme = lightColorScheme(primary = Purple, background = Color(0xFFFAF9FC))) {
             ExpenseApp(this)
         } }
-        val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        if (BiometricManager.from(this).canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS) {
-            val prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), object : BiometricPrompt.AuthenticationCallback() {})
-            prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Control Despeses").setSubtitle("Confirma la teva identitat per entrar").setAllowedAuthenticators(authenticators).build())
-        }
+
     }
 }
 
@@ -88,6 +84,17 @@ private fun loadCategoryMap(context: Context): Map<String, List<String>> {
 private fun saveCategoryMap(context: Context, values: Map<String, List<String>>) {
     val o=JSONObject(); values.forEach { (k,v)->o.put(k, JSONArray(v)) }
     context.getSharedPreferences("finance", Context.MODE_PRIVATE).edit().putString("category_map", o.toString()).apply()
+}
+
+
+private fun authenticateBank(context: Context, onSuccess: () -> Unit) {
+    val activity = context as? FragmentActivity ?: return
+    val allowed = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+    if (BiometricManager.from(context).canAuthenticate(allowed) != BiometricManager.BIOMETRIC_SUCCESS) return
+    val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(context), object : BiometricPrompt.AuthenticationCallback() {
+        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { onSuccess() }
+    })
+    prompt.authenticate(BiometricPrompt.PromptInfo.Builder().setTitle("Control Despeses").setSubtitle("Confirm the bank operation").setAllowedAuthenticators(allowed).build())
 }
 
 @Composable
@@ -210,7 +217,7 @@ fun ExpenseApp(context: Context) {
                     Text("El meu banc", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text("Saldo bancari intern: " + money(prefs.getLong("bank", 0L)), fontSize = 26.sp, modifier = Modifier.padding(vertical = 12.dp))
                     OutlinedTextField(value = bankAmount, onValueChange = { bankAmount = it }, label = { Text("Import (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-                    Row { Button(onClick = { val v=bankAmount.replace(',', '.').toDoubleOrNull()?.takeIf{it>0}?.let{(it*100).toLong()}; if(v!=null){bankBalance+=v;prefs.edit().putLong("bank",bankBalance).apply();bankAmount=""} }) { Text("Ingressar") }; Spacer(Modifier.width(8.dp)); Button(onClick = { val v=bankAmount.replace(',', '.').toDoubleOrNull()?.takeIf{it>0}?.let{(it*100).toLong()}; if(v!=null && bankBalance>=v){bankBalance-=v;prefs.edit().putLong("bank",bankBalance).apply();bankAmount=""} }) { Text("Retirar") } }
+                    Row { Button(onClick = { authenticateBank(context) { val v = bankAmount.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 100).toLong() }; if (v != null) { bankBalance += v; prefs.edit().putLong("bank", bankBalance).apply(); bankAmount = "" } } }) { Text("Ingressar") }; Spacer(Modifier.width(8.dp)); Button(onClick = { authenticateBank(context) { val v = bankAmount.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 100).toLong() }; if (v != null && bankBalance >= v) { bankBalance -= v; prefs.edit().putLong("bank", bankBalance).apply(); bankAmount = "" } } }) { Text("Retirar") } }
                     Text("Banc intern de prova, no és un compte bancari real.", color=Color.Gray, fontSize=12.sp)
                 }
                 3 -> {
