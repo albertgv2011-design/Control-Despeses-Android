@@ -80,6 +80,16 @@ private fun saveEntries(context: Context, entries: List<Entry>) {
     context.getSharedPreferences("finance", Context.MODE_PRIVATE).edit().putString("entries", arr.toString()).apply()
 }
 
+
+private fun loadCategoryMap(context: Context): Map<String, List<String>> {
+    val raw = context.getSharedPreferences("finance", Context.MODE_PRIVATE).getString("category_map", null) ?: return mapOf("Compres" to listOf("Menjar", "Roba", "Higiene", "Llar", "Tecnologia", "Regals", "Altres"), "Online" to listOf("Clash Royale", "Brawl Stars", "Subscripcions", "Compres web"), "Transport" to listOf("Bus", "Tren", "Taxi", "Gasolina"), "Oci" to listOf("Sortides", "Cinema", "Jocs"), "Ingressos" to listOf("Efectiu", "Bizum", "Família", "Sou"))
+    return try { val o = JSONObject(raw); o.keys().asSequence().associateWith { k -> val a=o.getJSONArray(k); (0 until a.length()).map { a.getString(it) } } } catch (_: Exception) { emptyMap() }
+}
+private fun saveCategoryMap(context: Context, values: Map<String, List<String>>) {
+    val o=JSONObject(); values.forEach { (k,v)->o.put(k, JSONArray(v)) }
+    context.getSharedPreferences("finance", Context.MODE_PRIVATE).edit().putString("category_map", o.toString()).apply()
+}
+
 @Composable
 fun ExpenseApp(context: Context) {
     val prefs = remember { context.getSharedPreferences("finance", Context.MODE_PRIVATE) }
@@ -102,11 +112,12 @@ fun ExpenseApp(context: Context) {
     var challengeName by remember { mutableStateOf("") }
     var challengeTarget by remember { mutableStateOf("") }
     var challenges by remember { mutableStateOf(prefs.getString("challenges", "") ?: "") }
-    var categoryMap by remember { mutableStateOf(mapOf("Compres" to listOf("Menjar", "Roba", "Higiene", "Llar", "Tecnologia", "Regals", "Altres"), "Online" to listOf("Clash Royale", "Brawl Stars", "Subscripcions", "Compres web"), "Transport" to listOf("Bus", "Tren", "Taxi", "Gasolina"), "Oci" to listOf("Sortides", "Cinema", "Jocs"), "Ingressos" to listOf("Efectiu", "Bizum", "Família", "Sou"))) }
+    var categoryMap by remember { mutableStateOf(loadCategoryMap(context)) }
     var newMainCategory by remember { mutableStateOf("") }
     var newSubCategory by remember { mutableStateOf("") }
     var aiQuestion by remember { mutableStateOf("") }
-    val categories = listOf("Compres", "Roba", "Menjar", "Paki", "Capritxos", "Clash Royale", "Brawl Stars", "Online", "Bizum", "Efectiu", "Transport", "Subscripcions", "Oci", "Estudis", "Objectius", "Altres")
+    val categories = categoryMap.flatMap { (parent, children) -> children.map { parent + " › " + it } } + categoryMap.keys
+    LaunchedEffect(categoryMap) { saveCategoryMap(context, categoryMap) }
     val now = System.currentTimeMillis()
     val cal = java.util.Calendar.getInstance()
     cal.timeInMillis = now
