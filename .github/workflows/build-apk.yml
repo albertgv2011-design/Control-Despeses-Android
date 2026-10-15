@@ -27,6 +27,12 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Create launcher icon from supplied image
+        run: |
+          mkdir -p app/src/main/res/drawable-nodpi
+          base64 --decode app/icon-source.b64 > app/src/main/res/drawable-nodpi/app_icon.jpg
+          file app/src/main/res/drawable-nodpi/app_icon.jpg
+
       - name: Build APK
         run: gradle assembleDebug
 
