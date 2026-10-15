@@ -86,6 +86,8 @@ fun ExpenseApp(context: Context) {
     var category by remember { mutableStateOf("Menjar") }
     var tab by remember { mutableStateOf(0) }
     var settings by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<Entry?>(null) }
+    var lastDeleted by remember { mutableStateOf<Entry?>(null) }
     val categories = listOf("Compres", "Roba", "Menjar", "Paki", "Capritxos", "Clash Royale", "Brawl Stars", "Online", "Bizum", "Efectiu", "Transport", "Subscripcions", "Oci", "Estudis", "Objectius", "Altres")
     val now = System.currentTimeMillis()
     val cal = java.util.Calendar.getInstance()
@@ -149,6 +151,16 @@ fun ExpenseApp(context: Context) {
                 }
                 1 -> {
                     Text("Moviments", fontSize = 24.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+                    if (lastDeleted != null) {
+                        OutlinedButton(onClick = {
+                            val restore = lastDeleted
+                            if (restore != null && entries.none { it.id == restore.id }) {
+                                entries = (entries + restore).sortedByDescending { it.timestamp }
+                                saveEntries(context, entries)
+                            }
+                            lastDeleted = null
+                        }, modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)) { Text("Desfer eliminació") }
+                    }
                     if (entries.isEmpty()) Text("Encara no hi ha moviments.")
                     else LazyColumn { items(entries, key = { it.id }) { e ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -160,6 +172,7 @@ fun ExpenseApp(context: Context) {
                                 Text(SimpleDateFormat("dd/MM/yyyy HH:mm", Locale("ca", "ES")).format(Date(e.timestamp)), color = Color.Gray, fontSize = 12.sp)
                             }
                             Text((if (e.isIncome) "+" else "−") + money(e.cents), color = if (e.isIncome) Green else Red, fontWeight = FontWeight.Bold)
+                            TextButton(onClick = { pendingDelete = e }) { Text("Desfer", color = Red) }
                         }
                         HorizontalDivider(color = Color(0xFFEDEAF2))
                     } }
@@ -177,6 +190,26 @@ fun ExpenseApp(context: Context) {
                 }
             }
         }
+    }
+
+    if (pendingDelete != null) {
+        val target = pendingDelete
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Desfer aquest moviment?") },
+            text = { Text("S'eliminarà ${target?.category} (${target?.let { money(it.cents) }}). El saldo i el pressupost es recalcularan.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (target != null) {
+                        entries = entries.filterNot { it.id == target.id }
+                        saveEntries(context, entries)
+                        lastDeleted = target
+                    }
+                    pendingDelete = null
+                }) { Text("Sí, desfer") }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel·lar") } }
+        )
     }
 
     if (showAdd) {
