@@ -195,6 +195,36 @@ fun ExpenseApp(context: Context) {
                         HorizontalDivider(color = Color(0xFFEDEAF2))
                     } }
                 }
+                2 -> {
+                    Text("El meu banc", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("Saldo bancari intern: " + money(prefs.getLong("bank", 0L)), fontSize = 26.sp, modifier = Modifier.padding(vertical = 12.dp))
+                    OutlinedTextField(value = bankAmount, onValueChange = { bankAmount = it }, label = { Text("Import (€)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
+                    Row { Button(onClick = { val v=bankAmount.replace(',', '.').toDoubleOrNull()?.takeIf{it>0}?.let{(it*100).toLong()}; if(v!=null){bankBalance+=v;prefs.edit().putLong("bank",bankBalance).apply();bankAmount=""} }) { Text("Ingressar") }; Spacer(Modifier.width(8.dp)); Button(onClick = { val v=bankAmount.replace(',', '.').toDoubleOrNull()?.takeIf{it>0}?.let{(it*100).toLong()}; if(v!=null && bankBalance>=v){bankBalance-=v;prefs.edit().putLong("bank",bankBalance).apply();bankAmount=""} }) { Text("Retirar") } }
+                    Text("Banc intern de prova, no és un compte bancari real.", color=Color.Gray, fontSize=12.sp)
+                }
+                3 -> {
+                    Text("Reptes d'estalvi", fontSize=24.sp, fontWeight=FontWeight.Bold)
+                    OutlinedTextField(value=challengeName,onValueChange={challengeName=it},label={Text("Nom del repte")},modifier=Modifier.fillMaxWidth().padding(top=8.dp))
+                    OutlinedTextField(value=challengeTarget,onValueChange={challengeTarget=it},label={Text("Objectiu (€)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.fillMaxWidth().padding(top=8.dp))
+                    Button(onClick={val v=challengeTarget.replace(',', '.').toDoubleOrNull()?.takeIf{it>0}?.let{(it*100).toLong()};if(challengeName.isNotBlank()&&v!=null){challenges=(challenges.split("\n").filter{it.isNotBlank()}+(challengeName.trim()+"|"+v)).joinToString("\n");prefs.edit().putString("challenges",challenges).apply();challengeName="";challengeTarget=""}},modifier=Modifier.padding(top=8.dp)){Text("Crear repte")}
+                    challenges.split("\n").filter{it.isNotBlank()}.forEach{Text("★ "+it.replace("|"," · "),modifier=Modifier.padding(top=8.dp))}
+                }
+                4 -> {
+                    Text("Categories i subcategories",fontSize=22.sp,fontWeight=FontWeight.Bold)
+                    OutlinedTextField(value=newMainCategory,onValueChange={newMainCategory=it},label={Text("Nova categoria")},modifier=Modifier.fillMaxWidth().padding(top=8.dp))
+                    Button(onClick={if(newMainCategory.isNotBlank()&&!categoryMap.containsKey(newMainCategory.trim())){categoryMap=categoryMap+(newMainCategory.trim() to listOf("Altres"));newMainCategory=""}},modifier=Modifier.padding(top=4.dp)){Text("Crear categoria")}
+                    categoryMap.forEach{(parent,children)->var expanded by remember(parent){mutableStateOf(false)};Card(Modifier.fillMaxWidth().padding(top=6.dp),colors=CardDefaults.cardColors(containerColor=Color.White)){Column(Modifier.padding(10.dp)){Text(parent,fontWeight=FontWeight.Bold,modifier=Modifier.clickable{expanded=!expanded});if(expanded){children.forEach{Text("• "+it)};OutlinedTextField(value=newSubCategory,onValueChange={newSubCategory=it},label={Text("Nova subcategoria")},modifier=Modifier.fillMaxWidth());TextButton(onClick={if(newSubCategory.isNotBlank()){categoryMap=categoryMap+(parent to (children+newSubCategory.trim()).distinct());newSubCategory=""}}){Text("Afegir subcategoria")}}}}}
+                    Text("Compres: Menjar, Roba, Higiene, Llar, Tecnologia, Regals i Altres.",fontSize=12.sp,color=Color.Gray)
+                }
+                5 -> {
+                    Text("Assistent financer",fontSize=24.sp,fontWeight=FontWeight.Bold)
+                    Text("Aquest mes has gastat "+money(spent)+" i et queden "+money(remaining)+" del pressupost.",modifier=Modifier.padding(top=10.dp))
+                    val top=thisMonth.filter{!it.isIncome}.groupBy{it.category}.mapValues{it.value.sumOf{e->e.cents}}.maxByOrNull{it.value}
+                    if(top!=null)Text("Categoria amb més despesa: "+top.key+" ("+money(top.value)+").",modifier=Modifier.padding(top=8.dp))
+                    OutlinedTextField(value=aiQuestion,onValueChange={aiQuestion=it},label={Text("Pregunta sobre les teves despeses")},modifier=Modifier.fillMaxWidth().padding(top=10.dp))
+                    Text(if(aiQuestion.isBlank())"Escriu una pregunta." else "Consell bàsic: revisa la categoria més alta i compara-la amb el pressupost.",modifier=Modifier.padding(top=8.dp))
+                    Text("Això és un resum local, no una IA generativa real. Per connectar-ne una cal configurar un servei i una clau API.",fontSize=12.sp,color=Color.Gray,modifier=Modifier.padding(top=10.dp))
+                }
                 else -> {
                     Text("Configuració", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text("Configuració local inicial", color = Color.Gray, modifier = Modifier.padding(top = 4.dp, bottom = 18.dp))
@@ -208,6 +238,11 @@ fun ExpenseApp(context: Context) {
                 }
             }
         }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Control Despeses ·", fontSize = 10.sp, color = Color.Gray)
+                Text("Fet per agviu 🖤🤍", fontSize = 10.sp, color = Ink, fontWeight = FontWeight.SemiBold)
+            }
     }
 
     if (pendingDelete != null) {
